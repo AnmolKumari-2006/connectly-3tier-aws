@@ -1,0 +1,13 @@
+node_modules
+connectly.db
+connectly.db-wal
+connectly.db-shm
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+uploads/covers/*
+!uploads/covers/.gitkeep
+uploads/posts/*
+!uploads/posts/.gitkeep
+uploads/stories/*
+!uploads/stories/.gitkeep
+.env

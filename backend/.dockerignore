@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+tests
+README.md
+Dockerfile
+.dockerignore
+# User uploads never go into the image; only the bundled demo images do.
+uploads/*/*
+!uploads/posts/seed-*

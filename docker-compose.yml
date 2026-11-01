@@ -1,0 +1,79 @@
+# =============================================================================
+#  Connectly: the whole 3 tier system in containers, on your own computer.
+#
+#    docker compose up --build        then open http://localhost:8080
+#    docker compose down              stop (data is kept)
+#    docker compose down -v           stop AND delete the database + uploads
+#
+#  Tier 1  web  Nginx + React build      the only container you can reach (port 8080)
+#  Tier 2  app  Node.js + Express API    reachable only from "web"
+#  Tier 3  db   PostgreSQL 16            reachable only from "app"
+#
+#  Two separate networks enforce that: "web" can't even see the database,
+#  the same rule the security groups enforce on AWS.
+# =============================================================================
+name: connectly
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: connectly
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-connectly_pass}
+      POSTGRES_DB: connectly
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [data-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U connectly -d connectly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: ./backend
+    image: connectly-app:local
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: connectly
+      DB_PASSWORD: ${DB_PASSWORD:-connectly_pass}
+      DB_NAME: connectly
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:-local-docker-only-secret-change-me}
+      CLIENT_ORIGIN: http://localhost:8080
+      TRUST_PROXY: "true"
+      COOKIE_SECURE: "false"
+      DEMO_MODE: "true"
+      STORAGE_DRIVER: local
+    volumes:
+      - uploads:/app/uploads
+    networks: [app-net, data-net]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    image: connectly-web:local
+    environment:
+      APP_UPSTREAM: app:4000
+    ports:
+      - "8080:8080"
+    networks: [app-net]
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  app-net:   # web <-> app
+  data-net:  # app <-> db
+
+volumes:
+  db-data:   # PostgreSQL data survives "docker compose down"
+  uploads:   # uploaded photos/videos survive too

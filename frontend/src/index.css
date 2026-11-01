@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border dark:border-border-dark;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-surface-light text-ink font-sans antialiased;
+    @apply dark:bg-surface-dark dark:text-ink-inverted;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+  ::selection {
+    @apply bg-accent/25;
+  }
+  /* Visible focus states everywhere, keyboard-first */
+  :focus-visible {
+    outline: 2px solid #00B8D9;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-card dark:bg-surface-dark-card rounded-xl2 shadow-soft dark:shadow-soft-dark;
+  }
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-soft-hover dark:hover:shadow-soft-dark-hover;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-white font-semibold
+           px-4 py-2.5 text-sm transition-all duration-150
+           hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-soft-hover
+           active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold px-4 py-2.5 text-sm
+           border border-border dark:border-border-dark text-ink dark:text-ink-inverted
+           transition-all duration-150 hover:border-accent hover:text-accent hover:-translate-y-0.5
+           disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-medium px-3 py-2 text-sm
+           text-ink-muted dark:text-ink-inverted-muted transition-colors duration-150
+           hover:bg-surface-light dark:hover:bg-white/5 hover:text-ink dark:hover:text-ink-inverted;
+  }
+  .icon-btn {
+    @apply relative inline-flex items-center justify-center w-10 h-10 rounded-full
+           text-ink-muted dark:text-ink-inverted-muted transition-colors duration-150
+           hover:bg-surface-light dark:hover:bg-white/5 hover:text-primary dark:hover:text-accent;
+  }
+  .input {
+    @apply w-full rounded-xl border border-border dark:border-border-dark
+           bg-surface-light dark:bg-white/5 text-ink dark:text-ink-inverted
+           px-3.5 py-2.5 text-sm placeholder:text-ink-muted/70
+           focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition;
+  }
+  .skeleton {
+    @apply relative overflow-hidden bg-border/60 dark:bg-white/10 rounded-lg;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .dark .skeleton::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+    background-size: 200% 100%;
+  }
+}
+
+/* Slim, unobtrusive scrollbars */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-thumb { @apply bg-border dark:bg-border-dark rounded-full; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

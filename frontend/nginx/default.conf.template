@@ -1,0 +1,71 @@
+# =============================================================================
+#  Connectly WEB TIER (Tier 1): Nginx inside the web container.
+#
+#  ${APP_UPSTREAM} is filled in from an environment variable when the container
+#  starts (official Nginx image "templates" feature):
+#    docker compose:  app:4000
+#    AWS:             <private IP of the application server>:4000
+# =============================================================================
+
+upstream connectly_api {
+    server ${APP_UPSTREAM};
+    keepalive 16;
+}
+
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Photos and videos can be up to 40 MB (backend/utils/upload.js).
+    client_max_body_size 50M;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Load balancer / Docker health check for the web tier itself.
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # API requests go to the application tier.
+    location /api/ {
+        proxy_pass http://connectly_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Uploaded photos/videos: served by the API (from S3 on AWS).
+    location /uploads/ {
+        proxy_pass http://connectly_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header Range $http_range;
+        proxy_set_header If-None-Match $http_if_none_match;
+    }
+
+    # Built JS/CSS have hashed names, so browsers may cache them for a year.
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # React single page app: unknown paths (e.g. /profile/anmol.sharma) load index.html.
+    location / {
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

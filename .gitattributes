@@ -1,0 +1,6 @@
+# Store text files with LF line endings, so Dockerfiles, shell scripts and the
+# Nginx template behave the same when built on Windows, Linux or GitHub.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
