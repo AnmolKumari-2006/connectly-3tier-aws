@@ -1,7 +1,7 @@
 # =============================================================================
 #  Connectly CI/CD pipeline (GitHub Actions)
 #
-#  Every push to main:   test  ->  build-push  ->  (deploy, added in step 6)
+#  Every push to main:   test  ->  build-push  ->  deploy
 #  Every pull request:   test only
 #
 #  test        Starts a real PostgreSQL, runs the API against it and executes
@@ -9,6 +9,9 @@
 #              the website.
 #  build-push  Builds the two Docker images and pushes them to GitHub
 #              Container Registry, tagged with the short commit id and "latest".
+#  deploy      Signs in to AWS with a deploy only IAM user and uses Systems
+#              Manager to run the new images on the servers: the API first,
+#              then the web servers one at a time, then checks the live site.
 # =============================================================================
 name: CI/CD
 
@@ -19,10 +22,12 @@ on:
     branches: [main]
   workflow_dispatch: # "Run workflow" button in the Actions tab
 
-# A newer push to the same branch cancels the older, still running pipeline.
+# One pipeline per branch at a time. A newer push cancels an older run only for
+# pull requests; on main the older run finishes, so a deployment is never cut
+# off halfway with some servers on the old version and some on the new one.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -197,5 +202,58 @@ jobs:
             echo "| App | \`${{ steps.names.outputs.app }}:${{ steps.names.outputs.tag }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # The "deploy" job (AWS Systems Manager) is added in step 6, once the AWS
-  # servers exist.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to AWS
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      AWS_REGION: ap-southeast-2
+      TAG: ${{ needs.build-push.outputs.tag }}
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      # OIDC federation is blocked by the account's organization policy (SCP),
+      # so a deploy only IAM user is used. Its keys live in encrypted GitHub
+      # secrets and it can only send the deploy command to Connectly servers.
+      - name: Sign in to AWS (deploy only IAM user)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # The API goes first, so the new website never talks to an old API.
+      - name: Deploy the application tier (API)
+        run: bash deploy/aws/ssm-deploy.sh app "$TAG"
+
+      - name: Deploy the web tier (rolling, one server at a time)
+        run: bash deploy/aws/ssm-deploy.sh web "$TAG"
+
+      - name: Smoke test through the load balancer
+        env:
+          ALB_URL: ${{ vars.ALB_URL }}
+        run: |
+          for _ in $(seq 1 12); do
+            if body=$(curl -sf "$ALB_URL/api/health"); then
+              echo "$body"
+              echo "$body" | grep -q '"database":"connected"' && echo "Live site is healthy" && exit 0
+            fi
+            sleep 10
+          done
+          echo "The site behind the load balancer is not healthy"; exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to AWS"
+            echo ""
+            echo "Image tag \`$TAG\` is running on the app and web tiers."
+            echo ""
+            echo "Live site: ${{ vars.ALB_URL }}"
+          } >> "$GITHUB_STEP_SUMMARY"
