@@ -109,7 +109,7 @@ export default function Login() {
             <h2 className="font-display font-extrabold text-2xl text-ink dark:text-ink-inverted mb-1">
               Welcome back
             </h2>
-            <p className="text-sm text-ink-muted mb-6">Log in to catch up with your circle. Now running on AWS.</p>
+            <p className="text-sm text-ink-muted mb-6">Log in to catch up with your circle. Deployed automatically by GitHub Actions.</p>
 
             {error && (
               <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-red-500/10 text-red-500 text-sm">
