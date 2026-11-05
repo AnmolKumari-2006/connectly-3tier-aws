@@ -1,12 +1,4 @@
-# =============================================================================
-#  Connectly web: TIER 1 (presentation) container image
-#  Build:  docker build -t connectly-web ./frontend
-#
-#  Stage 1 builds the React app; stage 2 is a small Nginx image that serves
-#  the build and forwards /api and /uploads to the application tier.
-# =============================================================================
 
-# ---- Stage 1: build the React app -------------------------------------------
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -14,7 +6,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---- Stage 2: serve it with Nginx (runs as a non-root user) -----------------
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 # Address of the application tier, rendered into the Nginx config at start.
